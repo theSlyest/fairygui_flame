@@ -1,9 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-abstract class TagHandler {
-  String call(String tagName, bool end, String attr);
-}
-
 class UBBParser {
   static UBBParser? _inst;
 
@@ -13,7 +9,8 @@ class UBBParser {
   String? lastFontSize;
 
   @protected
-  late Map<String, TagHandler> handlers;
+  late Map<String, String Function(String tagName, bool end, String attr)>
+      handlers;
 
   @protected
   late String pString;
@@ -21,23 +18,26 @@ class UBBParser {
   @protected
   int readPos;
 
-  UBBParser? get instance => _inst;
+  UBBParser? get instance {
+    _inst ??= UBBParser();
+    return _inst;
+  }
 
   UBBParser()
       : defaultImgWidth = 0,
         defaultImgHeight = 0,
         readPos = 0 {
-    handlers["urls"] = onTagUrl as TagHandler;
-    handlers["img"] = onTagImg as TagHandler;
-    handlers["b"] = onTagSimple as TagHandler;
-    handlers["i"] = onTagSimple as TagHandler;
-    handlers["u"] = onTagSimple as TagHandler;
-    handlers["sup"] = onTagSimple as TagHandler;
-    handlers["sub"] = onTagSimple as TagHandler;
-    handlers["color"] = onTagColor as TagHandler;
-    handlers["font"] = onTagFont as TagHandler;
-    handlers["size"] = onTagSize as TagHandler;
-    handlers["align"] = onTagAlign as TagHandler;
+    handlers["urls"] = onTagUrl;
+    handlers["img"] = onTagImg;
+    handlers["b"] = onTagSimple;
+    handlers["i"] = onTagSimple;
+    handlers["u"] = onTagSimple;
+    handlers["sup"] = onTagSimple;
+    handlers["sub"] = onTagSimple;
+    handlers["color"] = onTagColor;
+    handlers["font"] = onTagFont;
+    handlers["size"] = onTagSize;
+    handlers["align"] = onTagAlign;
   }
 
   String parse(String text, [bool remove = false]) {
@@ -45,12 +45,11 @@ class UBBParser {
     readPos = 0;
     lastColor = '';
     lastFontSize = '';
-    int pos;
     bool end;
+    int pos;
     String tag = '', attr = '', repl = '', out = '';
-    StringBuffer sb = StringBuffer('');
     while (pString.isNotEmpty) {
-      int pos = pString.indexOf('[');
+      pos = pString.indexOf('[');
       if (pos == -1) {
         out += pString;
         break;
