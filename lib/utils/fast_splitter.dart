@@ -1,5 +1,3 @@
-import 'dart:math';
-
 class FastSplitter {
   final String _data;
   final String _delimiter;

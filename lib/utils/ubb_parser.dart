@@ -26,7 +26,8 @@ class UBBParser {
   UBBParser()
       : defaultImgWidth = 0,
         defaultImgHeight = 0,
-        readPos = 0 {
+        readPos = 0,
+        handlers = {} {
     handlers["urls"] = onTagUrl;
     handlers["img"] = onTagImg;
     handlers["b"] = onTagSimple;
@@ -41,46 +42,45 @@ class UBBParser {
   }
 
   String parse(String text, [bool remove = false]) {
-    pString = text;
     readPos = 0;
     lastColor = '';
     lastFontSize = '';
     bool end;
-    int pos;
+    int pos, start = 0;
     String tag = '', attr = '', repl = '', out = '';
-    while (pString.isNotEmpty) {
-      pos = pString.indexOf('[');
+    while (start < text.length) {
+      pos = text.indexOf('[', start);
       if (pos == -1) {
-        out += pString;
+        out += text.substring(start);
         break;
       }
 
-      if (pos > 0 && pString[pos - 1] == '\\') {
-        out += '${pString.substring(pos - 1)}[';
-        pString.replaceRange(0, pos + 1, '');
+      if (pos > 0 && text[pos - 1] == '\\') {
+        out += '${text.substring(start, pos - 1)}[';
+        start = pos + 1;
         continue;
       }
 
-      out += pString.substring(pos);
-      pString = pString.substring(pos);
+      out += text.substring(start, pos);
+      start = pos;
 
-      pos = pString.indexOf(']');
+      pos = text.indexOf(']', start);
       if (pos == -1) {
-        out += pString;
+        out += text.substring(start);
         break;
       }
 
       if (pos == 1) {
-        out += pString.substring(0, 2);
-        pString = pString.substring(2);
+        out += text.substring(start, start + 2);
+        start += 2;
         continue;
       }
 
-      end = pString[1] == '/';
+      end = text[start + 1] == '/';
       if (end) {
-        tag = pString.substring(2, pos - 2);
+        tag = text.substring(start + 2, pos);
       } else {
-        tag = pString.substring(1, pos - 1);
+        tag = text.substring(start + 1, pos);
       }
       readPos = pos + 1;
 
@@ -96,9 +96,9 @@ class UBBParser {
         repl = handlers[tag]!(tag, end, attr);
         if (!remove) out += repl;
       } else {
-        out += pString.substring(readPos);
+        out += text.substring(start, readPos);
       }
-      pString = pString.substring(readPos);
+      start = readPos;
     }
 
     return out;
