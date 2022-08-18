@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:fariygui_flame/tween/g_path_point.dart';
+import 'package:fairygui_flame/tween/g_path_point.dart';
 import 'package:flame/extensions.dart';
 import 'vector3_extension.dart';
 

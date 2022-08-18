@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fariygui_flame/fariygui_flame.dart';
+import 'package:fairygui_flame/fairygui_flame.dart';
 
 void main() {
   test('adds one to input values', () {

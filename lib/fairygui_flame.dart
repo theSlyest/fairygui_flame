@@ -1,4 +1,4 @@
-library fariygui_flame;
+library fairygui_flame;
 
 /// A Calculator.
 class Calculator {

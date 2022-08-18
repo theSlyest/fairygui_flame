@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fariygui_flame/utils/tool_set.dart';
+import 'package:fairygui_flame/utils/tool_set.dart';
 import 'package:flutter/material.dart';
 
 void main() {

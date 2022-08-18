@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fariygui_flame/utils/ubb_parser.dart';
+import 'package:fairygui_flame/utils/ubb_parser.dart';
 
 void main() {
   test('Parse a BB text', () {
