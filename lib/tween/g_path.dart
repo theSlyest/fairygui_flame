@@ -12,9 +12,9 @@ class Segment {
 }
 
 class GPath {
-  static List<Vector3> _splinePoints = List.empty(growable: true);
-  List<Segment> _segments;
-  List<Vector3> _points;
+  static final List<Vector3> _splinePoints = List.empty(growable: true);
+  final List<Segment> _segments;
+  final List<Vector3> _points;
   double _fullLength;
 
   GPath()
