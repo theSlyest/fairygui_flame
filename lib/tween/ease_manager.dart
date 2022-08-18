@@ -2,10 +2,10 @@ import 'dart:math';
 import 'package:fairygui_flame/tween/ease_type.dart';
 import 'bounce.dart';
 
-const double _piOver2 = pi * 0.5;
-const double _twoPi = pi * 2.0;
-
 class EaseManager {
+  static const double _piOver2 = pi * 0.5;
+  static const double _twoPi = pi * 2.0;
+
   static double evaluate(EaseType easeType, double time, double duration,
       double overshootOrAmplitude, double period) {
     switch (easeType) {
