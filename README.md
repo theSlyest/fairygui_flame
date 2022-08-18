@@ -1,18 +1,25 @@
-<!-- 
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# FairyGUI for Flame
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages). 
+FairyGUI is a Cross Platform UI Editor & UI framework.
+[Get FairyGUI-Editor](https://en.fairygui.com/product.html)
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages). 
--->
+FairyGUI uses a way of thinking closer to the designer to redefine the production process of the UI, which greatly reduces the time the programmer needs to invest in making the UI.<br>
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+In terms of running efficiency, FairyGUI uses the unique `FairyBatching` technology for DrawCall optimization, which is efficient and easy to control. <br>
+
+In terms of functionality, FairyGUI has good built-in support for traditional UI production pain points, such as `rich text` (including image and animation), `emoji input` (direct support for keyboard), `virtual list`, `loop list`, `pixel-level hit test`, `curved UI`, `gesture`, `particles and model interspersed UI`, `typing effect`, etc. <br>
+
+FairyGUI also fully encapsulates all input methods. Whether mouse, single touch, multi-touch, or VR handle input, developers can use the same code to handle interaction.<br>
+
+The library was designed to work with Unity 5.6 and above, but is currently only tested with Unity 2018 and above.
+
+## Learn
+
+[Guide](https://en.fairygui.com/docs/guide/index.html)
+
+## License
+
+MIT
 
 ## Features
 
