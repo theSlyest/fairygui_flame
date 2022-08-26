@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
 
   # Flame engine
-  flame: ^1.2.1
+  flame: ^1.3.0
 
 dev_dependencies:
   flutter_test:
