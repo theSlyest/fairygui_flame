@@ -1,11 +1,14 @@
 import 'dart:developer';
+import 'dart:typed_data';
 
 import 'package:fairygui_flame/field_types.dart';
+import 'package:fairygui_flame/utils/byte_buffer.dart';
 import 'package:flame/components.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/flame.dart';
-import 'package:flame/sprite.dart';
 import 'package:flutter/services.dart';
+
+import 'package_item.dart';
 
 class AtlasSprite {
   late PackageItem atlas;
@@ -31,7 +34,7 @@ class UIPackage {
 
   late String _id;
   late String _name;
-  String? _assetPath;
+  late String _assetPath;
 
   List<PackageItem> _items;
   Map<String, PackageItem> _itemsById;
@@ -39,17 +42,19 @@ class UIPackage {
   Map<String, AtlasSprite> _sprites;
   String? _customId;
   List<String> _stringTable;
-  Map<String, String> _dependencies;
+  List<Map<String, String>> _dependencies;
+  List<String> _branches;
   int _branchIndex;
 
   UIPackage()
       : _branchIndex = -1,
-        _items = <PackageItem>[],
+        _items = [],
         _itemsById = {},
         _itemsByName = {},
         _sprites = {},
-        _stringTable = <String>[],
-        _dependencies = {};
+        _stringTable = [],
+        _dependencies = [],
+        _branches = [];
 
   static UIPackage? getById(String id) =>
       _packageInstById.containsKey(id) ? _packageInstById[id] : null;
@@ -65,17 +70,21 @@ class UIPackage {
     _emptyTexture ??=
         await Flame.images.fromBase64("emptyImage", _emptyTextureData);
 
-    final String data;
+    final Uint8List data;
     try {
-      data = await rootBundle.loadString('$assetPath.fui');
+      data = await rootBundle
+          .load('$assetPath.fui')
+          .then((value) => value.buffer.asUint8List());
     } catch (e) {
       log("FairyGUI: cannot load package from '$assetPath'");
       return null;
     }
 
+    ByteBuffer buffer = ByteBuffer(data, 0);
+
     final UIPackage pkg = UIPackage();
     pkg._assetPath = assetPath;
-    if (!pkg._loadPackage(data)) {
+    if (!pkg._loadPackage(buffer)) {
       return null;
     }
 
@@ -121,7 +130,7 @@ class UIPackage {
       log('FairyGUI: resource not found - $url');
       return null;
     } else {
-      return pi.owner.createObject(pi);
+      return pi.owner._createObject(pi);
     }
   }
 
@@ -129,7 +138,7 @@ class UIPackage {
     final UIPackage? pkg = getByName(pkgName);
     if (pkg != null) {
       final PackageItem? pi = pkg.itemByName(resName);
-      if (pi != null) return '$urlPrefix${pkg.getId()}${pi.id}';
+      if (pi != null) return '$urlPrefix${pkg.id}${pi.id}';
     }
     return null;
   }
@@ -147,7 +156,7 @@ class UIPackage {
         final UIPackage? pkg = getById(pkgId);
         if (pkg != null) {
           final String srcId = url.substring(13);
-          return pkg.getItem(srcId);
+          return pkg.item(srcId);
         }
       }
     } else {
@@ -178,7 +187,7 @@ class UIPackage {
     }
   }
 
-  static Object? getItemAsset(final String pkgName, final String resName,
+  static dynamic getItemAsset(final String pkgName, final String resName,
       [PackageItemType type = PackageItemType.unknown]) {
     UIPackage? pkg = getByName(pkgName);
     if (pkg != null) {
@@ -195,7 +204,7 @@ class UIPackage {
     return null;
   }
 
-  static Object? getItemAssetByURL(final String url,
+  static dynamic getItemAssetByURL(final String url,
       [PackageItemType type = PackageItemType.unknown]) {
     PackageItem? pi = getItemByURL(url);
     if (pi == null) {
@@ -216,8 +225,8 @@ class UIPackage {
   static set branch(final String value) {
     _branch = value;
     for (PackageItem pi in _packageList) {
-      if (pi._branches.isNotEmpty) {
-        pi._branchIndex = pi._branches.indexOf(value);
+      if (pi.branches.isNotEmpty) {
+        pi._branchIndex = pi.branches.indexOf(value);
       }
     }
   }
@@ -238,7 +247,116 @@ class UIPackage {
     return spriteFrame;
   }
 
-  bool _loadPackage(String buffer) {
+  bool _loadPackage(ByteBuffer buffer) {
+    if (buffer.readUInt() != 0x46475549) {
+      log("FairyGUI: old package format found in '$_assetPath'");
+      return false;
+    }
+
+    buffer.version = buffer.readInt();
+    bool ver2 = buffer.version >= 2;
+    buffer.readBool();
+    _id = buffer.readString();
+    _name = buffer.readString();
+    buffer.skip(20);
+    int indexTablePos = buffer.position;
+    int cnt;
+
+    buffer.seek(indexTablePos, 4);
+
+    cnt = buffer.readInt();
+    _stringTable.length = cnt;
+    for (int i = 0; i < cnt; ++i) {
+      _stringTable[i] = buffer.readString();
+    }
+    buffer.stringTable = _stringTable;
+
+    buffer.seek(indexTablePos, 0);
+    cnt = buffer.readShort();
+    for (int i = 0; i < cnt; ++i) {
+      Map<String, String> info = {};
+      info['id'] = buffer.readS();
+      info['name'] = buffer.readS();
+      _dependencies.add(info);
+    }
+
+    bool branchIncluded = false;
+    if (ver2) {
+      cnt = buffer.readShort();
+      if (cnt > 0) {
+        _branches = buffer.readSArray(cnt);
+        if (_branch.isNotEmpty) _branchIndex = _branches.indexOf(_branch);
+      }
+      branchIncluded = cnt > 0;
+    }
+
+    buffer.seek(indexTablePos, 1);
+
+    PackageItem pi;
+    String path = _assetPath;
+    int pos = path.indexOf('/');
+    String shortPath = pos == -1 ? '' : path.substring(0, pos + 1);
+    path += '_';
+
+    cnt = buffer.readShort();
+    for (int i = 0; i < cnt; ++i) {
+      int nextPos = buffer.readInt();
+      nextPos += buffer.position;
+
+      pi = PackageItem()
+        ..owner = this
+        ..type = PackageItemType.values[buffer.readByte()]
+        ..id = buffer.readS()
+        ..name = buffer.readS();
+      buffer.skip(2); // path
+      pi.file = buffer.readS();
+      buffer.readBool(); // exported
+      pi.width = buffer.readInt();
+      pi.height = buffer.readInt();
+
+      switch (pi.type) {
+        case PackageItemType.image:
+          {
+            pi.objectType = ObjectType.image;
+            int scaleOption = buffer.readByte();
+            if (scaleOption == 1) {
+              double left = buffer.readInt().toDouble();
+              double top = buffer.readInt().toDouble();
+              double width = buffer.readInt().toDouble();
+              double height = buffer.readInt().toDouble();
+              pi.scale9Grid = Rect.fromLTWH(left, top, width, height);
+              pi.tileGridIndice = buffer.readInt();
+            } else if (scaleOption == 2) {
+              pi.scaleByTile = true;
+            }
+            buffer.readBool(); // smoothing
+            break;
+          }
+        case PackageItemType.movieClip:
+          {
+            buffer.readBool(); // smoothing
+            pi.objectType = ObjectType.movieClip;
+            pi.rawData = buffer.readBuffer();
+            break;
+          }
+        case PackageItemType.font:
+          {
+            pi.rawData = buffer.readBuffer();
+            break;
+          }
+        case PackageItemType.component:
+          {
+            int extension = buffer.readByte();
+            if (extension > 0) {
+              pi.objectType = ObjectType.values[extension];
+            } else {
+              pi.objectType = ObjectType.component;
+            }
+            pi.rawData = buffer.readBuffer();
+          }
+      }
+    }
+
     return false;
   }
 
@@ -294,7 +412,7 @@ class UIPackage {
   PackageItem? itemByName(final String itemName) =>
       _itemsByName.containsKey(itemName) ? _itemsByName[itemName] : null;
 
-  Object? itemAsset(PackageItem item) {
+  dynamic itemAsset(PackageItem item) {
     switch (item.type) {
       case PackageItemType.image:
         {

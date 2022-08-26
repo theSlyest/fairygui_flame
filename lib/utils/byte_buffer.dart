@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
@@ -8,13 +7,15 @@ class ByteBuffer {
   bool littleEndian;
   int position;
   List<String> stringTable;
+  int version;
 
   ByteBuffer(Uint8List buffer, int offset)
       : _buffer = buffer,
         position = 0,
         _offset = offset,
         littleEndian = false,
-        stringTable = <String>[];
+        stringTable = <String>[],
+        version = 0;
 
   int get bytesAvailable => _buffer.length - position;
 

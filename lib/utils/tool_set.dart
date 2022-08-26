@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:io' as io;
+import 'dart:io';
 
 class ToolSet {
   static Color hexToColor(String str) {
@@ -49,7 +49,7 @@ class ToolSet {
   }
 
   static bool isFileExist(String fileName) {
-    bool res = io.File(fileName).existsSync();
+    bool res = File(fileName).existsSync();
     // TODO Add popup notification logic (using Flame sdk)
     return res;
   }
