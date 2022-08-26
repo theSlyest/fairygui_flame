@@ -12,7 +12,7 @@ class UIObjectFactory {
   static Map<String, GComponentCreator> _packageItemExtensions = {};
   static GLoaderCreator? _loaderCreator;
 
-  static void _resolvePackageItemExtension(PackageItem pi) {
+  static void resolvePackageItemExtension(PackageItem pi) {
     GComponentCreator? ec =
         _packageItemExtensions['${UIPackage.urlPrefix}${pi.owner.id}${pi.id}'];
     if (ec != null) {

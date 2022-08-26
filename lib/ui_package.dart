@@ -1,7 +1,9 @@
 import 'dart:developer';
 import 'dart:typed_data';
 
+import 'package:fairygui_flame/event/pixel_hit_test_data.dart';
 import 'package:fairygui_flame/field_types.dart';
+import 'package:fairygui_flame/ui_object_factory.dart';
 import 'package:fairygui_flame/utils/byte_buffer.dart';
 import 'package:flame/components.dart';
 import 'package:flame/extensions.dart';
@@ -13,7 +15,7 @@ import 'package_item.dart';
 class AtlasSprite {
   late PackageItem atlas;
   Rect rect = Rect.zero;
-  Vector2 originalSize = Vector2.zero();
+  Size originalSize = Size.zero;
   Vector2 offset = Vector2.zero();
   bool rotated = false;
 }
@@ -21,9 +23,9 @@ class AtlasSprite {
 class UIPackage {
   static final Map<String, UIPackage> _packageInstById = {};
   static final Map<String, UIPackage> _packageInstByName = {};
-  static final List<PackageItem> _packageList = <PackageItem>[];
+  static final List<UIPackage> _packageList = [];
   static final Map<String, String> _vars = {};
-  static String _branch = "";
+  static String _branch = '';
 
   static Image? _emptyTexture;
   static const String _emptyTextureData =
@@ -88,8 +90,8 @@ class UIPackage {
       return null;
     }
 
-    _packageInstById[pkg.getId()] = pkg;
-    _packageInstByName[pkg.getName()] = pkg;
+    _packageInstById[pkg.id] = pkg;
+    _packageInstByName[pkg.name] = pkg;
     _packageInstById[assetPath] = pkg;
     _packageList.add(pkg);
 
@@ -102,9 +104,9 @@ class UIPackage {
       log('FairyGUI: invalid package name or id: $packageIdOrName');
     } else {
       if (_packageList.contains(pkg)) _packageList.remove(pkg);
-      _packageInstById.remove(pkg.getId());
+      _packageInstById.remove(pkg.id);
       _packageInstById.remove(pkg._assetPath);
-      _packageInstByName.remove(pkg.getName());
+      _packageInstByName.remove(pkg.name);
     }
   }
 
@@ -120,7 +122,7 @@ class UIPackage {
       log('FairyGUI: package not found - $pkgName');
       return null;
     } else {
-      return pkg._createObject(resName);
+      return pkg._createObjectFromName(resName);
     }
   }
 
@@ -224,9 +226,9 @@ class UIPackage {
 
   static set branch(final String value) {
     _branch = value;
-    for (PackageItem pi in _packageList) {
-      if (pi.branches.isNotEmpty) {
-        pi._branchIndex = pi.branches.indexOf(value);
+    for (UIPackage pkg in _packageList) {
+      if (pkg._branches.isNotEmpty) {
+        pkg._branchIndex = pkg._branches.indexOf(value);
       }
     }
   }
@@ -242,8 +244,8 @@ class UIPackage {
 
   Sprite _createSpriteTexture(AtlasSprite spr) {
     itemAsset(spr.atlas);
-    Sprite spriteFrame = Sprite(spr.atlas.texture,
-        srcPosition: spr.offset, srcSize: spr.originalSize);
+    Sprite spriteFrame = Sprite(spr.atlas.texture!,
+        srcPosition: spr.offset, srcSize: spr.originalSize.toVector2());
     return spriteFrame;
   }
 
@@ -353,11 +355,111 @@ class UIPackage {
               pi.objectType = ObjectType.component;
             }
             pi.rawData = buffer.readBuffer();
+            UIObjectFactory.resolvePackageItemExtension(pi);
+            break;
           }
+        case PackageItemType.atlas:
+        case PackageItemType.sound:
+        case PackageItemType.misc:
+          {
+            pi.file = path + pi.file;
+            break;
+          }
+
+        case PackageItemType.spine:
+        case PackageItemType.dragonBones:
+          {
+            pi.file = shortPath + pi.file;
+            pi.skeletonAnchor = Vector2.zero();
+            pi.skeletonAnchor.x = buffer.readFloat();
+            pi.skeletonAnchor.y = buffer.readFloat();
+            break;
+          }
+        default:
+          break;
+      }
+
+      if (ver2) {
+        String str = buffer.readS();
+        if (str.isNotEmpty) pi.name = '$str/${pi.name}';
+
+        int branchCnt = buffer.readUByte();
+        if (branchCnt > 0) {
+          if (branchIncluded) {
+            pi.branches = buffer.readSArray(branchCnt);
+          } else {
+            _itemsById[buffer.readS()] = pi;
+          }
+        }
+
+        int highResCnt = buffer.readUByte();
+        if (highResCnt > 0) {
+          pi.highResolution = buffer.readSArray(highResCnt);
+        }
+      }
+
+      _items.add(pi);
+      _itemsById[pi.id] = pi;
+      if (pi.name.isNotEmpty) _itemsByName[pi.name] = pi;
+
+      buffer.position = nextPos;
+    }
+
+    buffer.seek(indexTablePos, 2);
+
+    cnt = buffer.readShort();
+    for (int i = 0; i < cnt; ++i) {
+      int nextPos = buffer.readShort();
+      nextPos += buffer.position;
+
+      final String itemId = buffer.readS();
+      pi = _itemsById[buffer.readS()]!;
+
+      AtlasSprite sprite = AtlasSprite();
+      sprite.atlas = pi;
+      // TODO Multiply by scale factor?
+      final double left = buffer.readInt().toDouble();
+      final double top = buffer.readInt().toDouble();
+      final double width = buffer.readInt().toDouble();
+      final double height = buffer.readInt().toDouble();
+      sprite.rect = Rect.fromLTWH(left, top, width, height);
+      sprite.rotated = buffer.readBool();
+
+      if (ver2 && buffer.readBool()) {
+        double x = buffer.readInt().toDouble();
+        double y = buffer.readInt().toDouble();
+        sprite.offset = Vector2(x, y);
+        x = buffer.readInt().toDouble();
+        y = buffer.readInt().toDouble();
+        sprite.originalSize = Size(x, y);
+      } else {
+        sprite.offset.setZero();
+        sprite.originalSize = sprite.rect.size;
+      }
+      _sprites[itemId] = sprite;
+
+      buffer.position = nextPos;
+    }
+
+    if (buffer.seek(indexTablePos, 3)) {
+      cnt = buffer.readShort();
+      for (int i = 0; i < cnt; ++i) {
+        int nextPos = buffer.readInt();
+        nextPos += buffer.position;
+
+        PackageItem? pi = _itemsById[buffer.readS()];
+        if (pi != null) {
+          if (pi.type == PackageItemType.image) {
+            pi.pixelHitTestData = PixelHitTestData();
+            pi.pixelHitTestData.load(buffer);
+          }
+        }
+
+        buffer.position = nextPos;
       }
     }
 
-    return false;
+    return true;
   }
 
   void _loadAtlas(PackageItem item) {
@@ -389,7 +491,7 @@ class UIPackage {
   GObject _createObjectFromName(String resName) {
     PackageItem? pi = itemByName(resName);
     assert(pi != null, 'FairyGUI: resource not found - $resName in $_name');
-    return _createObject(pi);
+    return _createObject(pi!);
   }
 
   GObject? _createObject(PackageItem item) {

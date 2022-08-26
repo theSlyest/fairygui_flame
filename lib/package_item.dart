@@ -21,13 +21,13 @@ class PackageItem {
   List<String> highResolution;
 
   // atlas
-  Image texture;
+  Image? texture;
 
   // image
   Rect scale9Grid;
   bool scaleByTile;
   int tileGridIndice;
-  Sprite spriteFrame;
+  Sprite? spriteFrame;
   PixelHitTestData pixelHitTestData;
 
   // movie clip
