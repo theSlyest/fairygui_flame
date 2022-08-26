@@ -1,22 +1,24 @@
 import 'dart:developer';
 
 import 'package:fairygui_flame/field_types.dart';
+import 'package:flame/components.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/flame.dart';
+import 'package:flame/sprite.dart';
 import 'package:flutter/services.dart';
 
 class AtlasSprite {
-  PackageItem? atlas;
-  Rect? rect;
-  Size? originalSize;
-  Vector2? offset;
-  bool? rotated;
+  late PackageItem atlas;
+  Rect rect = Rect.zero;
+  Vector2 originalSize = Vector2.zero();
+  Vector2 offset = Vector2.zero();
+  bool rotated = false;
 }
 
 class UIPackage {
   static final Map<String, UIPackage> _packageInstById = {};
   static final Map<String, UIPackage> _packageInstByName = {};
-  static final List<PackageItem> _packageList = List.empty(growable: true);
+  static final List<PackageItem> _packageList = <PackageItem>[];
   static final Map<String, String> _vars = {};
   static String _branch = "";
 
@@ -27,8 +29,8 @@ class UIPackage {
   static int constructing = 0;
   static const String urlPrefix = "ui://";
 
-  String? _id;
-  String? _name;
+  late String _id;
+  late String _name;
   String? _assetPath;
 
   List<PackageItem> _items;
@@ -42,11 +44,11 @@ class UIPackage {
 
   UIPackage()
       : _branchIndex = -1,
-        _items = List.empty(growable: true),
+        _items = <PackageItem>[],
         _itemsById = {},
         _itemsByName = {},
         _sprites = {},
-        _stringTable = List.empty(growable: true),
+        _stringTable = <String>[],
         _dependencies = {};
 
   static UIPackage? getById(String id) =>
@@ -207,37 +209,66 @@ class UIPackage {
     }
   }
 
-  static Texture? getEmptyTexture() => _emptyTexture;
+  static Image getEmptyTexture() => _emptyTexture!;
 
-  static String getBranch() => _branch;
+  static String get branch => _branch;
 
-  static void setBranch(final String value) {}
+  static set branch(final String value) {
+    _branch = value;
+    for (PackageItem pi in _packageList) {
+      if (pi._branches.isNotEmpty) {
+        pi._branchIndex = pi._branches.indexOf(value);
+      }
+    }
+  }
 
-  static String getVar(final String key) {}
+  static String? getVar(final String key) =>
+      _vars.containsKey(key) ? _vars[key] : null;
 
-  static void setVar(final String key, final String value) {}
+  static void setVar(final String key, final String value) =>
+      _vars[key] = value;
+
+  AtlasSprite? sprite(String spriteId) =>
+      _sprites.containsKey(spriteId) ? _sprites[spriteId] : null;
+
+  Sprite _createSpriteTexture(AtlasSprite spr) {
+    itemAsset(spr.atlas);
+    Sprite spriteFrame = Sprite(spr.atlas.texture,
+        srcPosition: spr.offset, srcSize: spr.originalSize);
+    return spriteFrame;
+  }
 
   bool _loadPackage(String buffer) {
     return false;
   }
 
-  void _loadAtlas(PackageItem item) {}
-
-  AtlasSprite _getSprite(String spriteId) {
-    return AtlasSprite();
+  void _loadAtlas(PackageItem item) {
+    Image tex = Flame.images.containsKey(item.file)
+        ? Flame.images.fromCache(item.file)
+        : _emptyTexture!;
+    item.texture = tex;
   }
 
-  SpriteAnimationFrame _createSpriteTexture(AtlasSprite sprite) {
-    return SpriteAnimationFrame();
+  void _loadImage(PackageItem item) {
+    AtlasSprite? spr = sprite(item.id);
+    if (spr == null) {
+      item.spriteFrame = Sprite(_emptyTexture!);
+    } else {
+      item.spriteFrame = _createSpriteTexture(spr);
+    }
+    if (item.scaleByTile) {
+      //   TODO Tiled texture
+      //   item.spriteFrame.texture;
+    }
   }
-
-  void _loadImage(PackageItem item) {}
 
   void _loadMovieClip(PackageItem item) {}
 
-  void _loadFont(PackageItem item) {}
+  void _loadFont(PackageItem item) {
+    item.bitmapFont = BitmapFont();
+  }
 
-  GObject _createObject(String resName) {
+  GObject _createObjectFromName(String resName) {
     PackageItem? pi = itemByName(resName);
     assert(pi != null, 'FairyGUI: resource not found - $resName in $_name');
     return _createObject(pi);
@@ -253,23 +284,15 @@ class UIPackage {
     return g;
   }
 
-  String getId() {
-    return _id;
-  }
+  String get id => _id;
 
-  String getName() {
-    return _name;
-  }
+  String get name => _name;
 
-  PackageItem? item(final String itemId) {
-    if (_itemsById.containsKey(itemId)) {
-      return _itemsById[itemId];
-    } else {
-      return null;
-    }
-  }
+  PackageItem? item(final String itemId) =>
+      _itemsById.containsKey(itemId) ? _itemsById[itemId] : null;
 
-  PackageItem itemByName(final String itemName) {}
+  PackageItem? itemByName(final String itemName) =>
+      _itemsByName.containsKey(itemName) ? _itemsByName[itemName] : null;
 
   Object? itemAsset(PackageItem item) {
     switch (item.type) {
