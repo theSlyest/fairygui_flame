@@ -38,13 +38,12 @@ class UIPackage {
   late String _name;
   late String _assetPath;
 
-  List<PackageItem> _items;
-  Map<String, PackageItem> _itemsById;
-  Map<String, PackageItem> _itemsByName;
-  Map<String, AtlasSprite> _sprites;
-  String? _customId;
-  List<String> _stringTable;
-  List<Map<String, String>> _dependencies;
+  final List<PackageItem> _items;
+  final Map<String, PackageItem> _itemsById;
+  final Map<String, PackageItem> _itemsByName;
+  final Map<String, AtlasSprite> _sprites;
+  final List<String> _stringTable;
+  final List<Map<String, String>> _dependencies;
   List<String> _branches;
   int _branchIndex;
 
@@ -482,10 +481,13 @@ class UIPackage {
     }
   }
 
-  void _loadMovieClip(PackageItem item) {}
+  void _loadMovieClip(PackageItem item) {
+    // TODO load movie clip
+  }
 
   void _loadFont(PackageItem item) {
     item.bitmapFont = BitmapFont();
+    // TODO load font
   }
 
   GObject _createObjectFromName(String resName) {
